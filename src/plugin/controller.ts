@@ -1,26 +1,34 @@
-figma.showUI(__html__);
+figma.showUI(__html__, { height: 500, width: 500 });
+
+figma.on('selectionchange', () => {
+  const frames = figma.currentPage.selection.map((frame) => ({ name: frame.name, id: frame.id }));
+  figma.ui.postMessage({
+    type: 'selectionchange',
+    frames,
+  });
+});
 
 figma.ui.onmessage = (msg) => {
-  if (msg.type === 'create-rectangles') {
-    const nodes = [];
-
-    for (let i = 0; i < msg.count; i++) {
-      const rect = figma.createRectangle();
-      rect.x = i * 150;
-      rect.fills = [{ type: 'SOLID', color: { r: 1, g: 0.5, b: 0 } }];
-      figma.currentPage.appendChild(rect);
-      nodes.push(rect);
-    }
-
+  if (msg.type === 'search') {
+    const nodes = figma.currentPage.findAll((n) => n.name === msg.query);
     figma.currentPage.selection = nodes;
-    figma.viewport.scrollAndZoomIntoView(nodes);
-
-    // This is how figma responds back to the ui
-    figma.ui.postMessage({
-      type: 'create-rectangles',
-      message: `Created ${msg.count} Rectangles`,
-    });
   }
 
-  figma.closePlugin();
+  if (msg.type === 'reset') {
+    figma.currentPage.selection = [];
+  }
+
+  if (msg.type === 'rename') {
+    const layers: string[] = msg.layers;
+    for (const selection of figma.currentPage.selection) {
+      if (layers.includes(selection.id)) {
+        selection.name = msg.newName;
+      }
+    }
+    const frames = figma.currentPage.selection.map((frame) => ({ name: frame.name, id: frame.id }));
+    figma.ui.postMessage({
+      type: 'selectionchange',
+      frames,
+    });
+  }
 };
